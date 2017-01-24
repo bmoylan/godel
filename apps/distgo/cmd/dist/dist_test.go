@@ -65,6 +65,16 @@ extensions:
 `
 )
 
+type testcase struct {
+	name            string
+	skip            func() bool
+	spec            func(projectDir string) params.ProductBuildSpecWithDeps
+	preDistAction   func(projectDir string, buildSpec params.ProductBuildSpec)
+	skipBuild       bool
+	wantErrorRegexp string
+	validate        func(caseNum int, name string, projectDir string)
+}
+
 func TestDist(t *testing.T) {
 	tmp, cleanup, err := dirs.TempDir("", "")
 	defer cleanup()
@@ -940,6 +950,43 @@ daemon: true
 						},
 						Dist: []params.Dist{{
 							Info: &params.BinDistInfo{},
+						}},
+					},
+					params.Project{},
+				), nil)
+				require.NoError(t, err)
+				return specWithDeps
+			},
+			preDistAction: func(projectDir string, buildSpec params.ProductBuildSpec) {
+				gittest.CreateGitTag(t, projectDir, "0.1.0")
+			},
+			validate: func(caseNum int, name string, projectDir string) {
+				// bin directory exists in top-level directory
+				fileInfo, err := os.Stat(path.Join(projectDir, "dist", "foo-0.1.0", "bin"))
+				require.NoError(t, err)
+				assert.True(t, fileInfo.IsDir(), "Case %d: %s", caseNum, name)
+
+				// executable should exist in os-arch directory
+				info, err := os.Stat(path.Join(projectDir, "dist", "foo-0.1.0", "bin", osarch.Current().String(), "foo"))
+				require.NoError(t, err)
+				assert.False(t, info.IsDir(), "Case %d: %s", caseNum, name)
+			},
+		},
+		{
+			name: "creates docker images",
+			spec: func(projectDir string) params.ProductBuildSpecWithDeps {
+				specWithDeps, err := params.NewProductBuildSpecWithDeps(params.NewProductBuildSpec(
+					projectDir,
+					"foo",
+					git.ProjectInfo{
+						Version: "0.1.0",
+					},
+					params.Product{
+						Build: params.Build{
+							MainPkg: "./.",
+						},
+						Dist: []params.Dist{{
+							Info: &params.DockerDistInfo{},
 						}},
 					},
 					params.Project{},

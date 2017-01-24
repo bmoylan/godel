@@ -60,9 +60,10 @@ type Dist struct {
 type DistInfoType string
 
 const (
-	SLSDistType DistInfoType = "sls" // distribution that uses the Standard Layout Specification
-	BinDistType DistInfoType = "bin" // distribution that includes all of the binaries for a product
-	RPMDistType DistInfoType = "rpm" // RPM distribution
+	SLSDistType    DistInfoType = "sls"    // distribution that uses the Standard Layout Specification
+	BinDistType    DistInfoType = "bin"    // distribution that includes all of the binaries for a product
+	DockerDistType DistInfoType = "docker" // distribution that produces Docker images.
+	RPMDistType    DistInfoType = "rpm"    // RPM distribution
 )
 
 type DistInfo interface {
@@ -81,6 +82,29 @@ type BinDistInfo struct {
 
 func (i *BinDistInfo) Type() DistInfoType {
 	return BinDistType
+}
+
+type DockerDistInfo struct {
+	// ImageName specifies the name to use for this container, may include a tag.
+	ImageName string
+	// Tags spcifies a list of tags to create; any tag in ImageName will be stripped before applying a specific tag.
+	Tags []string
+
+	// Dockerfile specifies the dockerfile to use for building the image; defaults to $PROJECT_DIR/Dockerfile
+	Dockerfile string
+	// BuildArgs is a map[string]string which will set --build-arg arguments to the docker build command.
+	BuildArgs map[string]string
+	// Labels is a map[string]string which will set --label arguments to the docker build command.
+	Labels map[string]string
+	// Files specifies additional files or directories to add to the docker context.
+	Files []string
+	// ForcePull is a boolean which defines whether Docker should attempt to pull a newer version of the base image
+	// before building.
+	ForcePull bool
+}
+
+func (i *DockerDistInfo) Type() DistInfoType {
+	return DockerDistType
 }
 
 type SLSDistInfo struct {

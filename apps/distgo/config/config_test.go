@@ -181,6 +181,56 @@ echo "main.year=$YEAR"
 			products:
 			  test:
 			    dist:
+			      dist-type:
+			        type: docker
+			        info:
+			          image-name: my-app:latest
+			          tags:
+			          - 1
+			          - 1.0
+			          dockerfile: ./Dockerfile-build
+			          build-args:
+			            VERSION: 1.0.0
+			          labels:
+			            a: b
+			          files:
+			          - ./config.yml
+			          force-pull: true
+			`,
+			want: func() config.Project {
+				return config.Project{
+					Products: map[string]config.Product{
+						"test": {
+							Dist: []config.Dist{
+								{
+									DistType: config.DistInfo{
+										Type: string(params.DockerDistType),
+										Info: config.DockerDist{
+											ImageName:  "my-app:latest",
+											Tags:       []string{"1", "1.0"},
+											Dockerfile: "./Dockerfile-build",
+											BuildArgs: map[string]string{
+												"VERSION": "1.0.0",
+											},
+											Labels: map[string]string{
+												"a": "b",
+											},
+											Files:     []string{"./config.yml"},
+											ForcePull: true,
+										},
+									},
+								},
+							},
+						},
+					},
+				}
+			},
+		},
+		{
+			yml: `
+			products:
+			  test:
+			    dist:
 			      - dist-type:
 			          type: sls
 			          info:

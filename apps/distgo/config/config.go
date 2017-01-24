@@ -179,6 +179,26 @@ type BinDist struct {
 	InitShTemplateFile string `yaml:"init-sh-template-file" json:"init-sh-template-file"`
 }
 
+type DockerDist struct {
+	// ImageName specifies the name to use for this container, may include a tag.
+	ImageName string `yaml:"image-name" json:"image-name"`
+	// Tags spcifies a list of tags to create; any tag in ImageName will be stripped before applying a specific tag.
+	Tags []string `yaml:"tags" json:"tags"`
+
+	// Dockerfile specifies the dockerfile to use for building the image; defaults to $PROJECT_DIR/Dockerfile
+	Dockerfile string `yaml:"dockerfile" json:"dockerfile"`
+	// BuildArgs is a map[string]string which will set --build-arg arguments to the docker build command.
+	BuildArgs map[string]string `yaml:"build-args" json:"build-args"`
+	// Labels is a map[string]string which will set --label arguments to the docker build command.
+	Labels map[string]string `yaml:"labels" json:"labels"`
+	// Labels is a map[string]string which will set --labels arguments to the docker build command.
+	// Files specifies additional files or directories to add to the docker context.
+	Files []string `yaml:"files" json:"files"`
+	// ForcePull is a boolean which defines whether Docker should attempt to pull a newer version of the base image
+	// before building.
+	ForcePull bool `yaml:"force-pull" json:"force-pull"`
+}
+
 type SLSDist struct {
 	// InitShTemplateFile is the path to a template file that is used as the basis for the init.sh script of the
 	// distribution. The path is relative to the project root directory. The contents of the file is processed using
@@ -363,6 +383,16 @@ func (cfg *DistInfo) UnmarshalYAML(unmarshal func(interface{}) error) error {
 			return err
 		}
 		rawDistInfoConfig.Info = rawBin.Info
+	case params.DockerDistType:
+		type typedRawConfig struct {
+			Type string
+			Info DockerDist
+		}
+		var rawDocker typedRawConfig
+		if err := unmarshal(&rawDocker); err != nil {
+			return err
+		}
+		rawDistInfoConfig.Info = rawDocker.Info
 	case params.RPMDistType:
 		type typedRawConfig struct {
 			Type string
@@ -401,6 +431,17 @@ func (cfg *DistInfo) ToParam() (params.DistInfo, error) {
 			distInfo = &params.BinDistInfo{
 				OmitInitSh:         val.OmitInitSh,
 				InitShTemplateFile: val.InitShTemplateFile,
+			}
+		case params.DockerDistType:
+			val := DockerDist{}
+			decodeErr = mapstructure.Decode(cfg.Info, &val)
+			distInfo = &params.DockerDistInfo{
+				ImageName:  val.ImageName,
+				Tags:       val.Tags,
+				BuildArgs:  val.BuildArgs,
+				Dockerfile: val.Dockerfile,
+				Files:      val.Files,
+				ForcePull:  val.ForcePull,
 			}
 		case params.RPMDistType:
 			val := RPMDist{}
@@ -441,6 +482,18 @@ func (cfg *BinDist) ToParams() params.BinDistInfo {
 	return params.BinDistInfo{
 		OmitInitSh:         cfg.OmitInitSh,
 		InitShTemplateFile: cfg.InitShTemplateFile,
+	}
+}
+
+func (cfg *DockerDist) ToParams() params.DockerDistInfo {
+	return params.DockerDistInfo{
+		ImageName:  cfg.ImageName,
+		Tags:       cfg.Tags,
+		BuildArgs:  cfg.BuildArgs,
+		Labels:     cfg.Labels,
+		Dockerfile: cfg.Dockerfile,
+		Files:      cfg.Files,
+		ForcePull:  cfg.ForcePull,
 	}
 }
 

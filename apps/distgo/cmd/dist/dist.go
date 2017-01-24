@@ -69,12 +69,15 @@ func Run(buildSpecWithDeps params.ProductBuildSpecWithDeps, stdout io.Writer) er
 
 	buildSpec := buildSpecWithDeps.Spec
 	for _, currDistCfg := range buildSpec.Dist {
-		if currDistCfg.Info.Type() == params.RPMDistType {
+		typ := currDistCfg.Info.Type()
+		if typ == params.DockerDistType || typ == params.RPMDistType {
 			osArchs := buildSpec.Build.OSArchs
 			expected := osarch.OSArch{OS: "linux", Arch: "amd64"}
 			if len(osArchs) != 1 || osArchs[0] != expected {
-				return fmt.Errorf("RPM is only supported for %v", expected)
+				return fmt.Errorf("RPM and Docker only support %v binaries", expected)
 			}
+		}
+		if typ == params.RPMDistType {
 			if err := checkRPMDependencies(); err != nil {
 				return err
 			}
@@ -132,7 +135,7 @@ func Run(buildSpecWithDeps params.ProductBuildSpecWithDeps, stdout io.Writer) er
 
 		var packager Packager
 		var err error
-		switch currDistCfg.Info.Type() {
+		switch typ {
 		case params.SLSDistType:
 			if packager, err = slsDist(buildSpecWithDeps, currDistCfg, outputProductDir, spec, values); err != nil {
 				return err
@@ -141,12 +144,16 @@ func Run(buildSpecWithDeps params.ProductBuildSpecWithDeps, stdout io.Writer) er
 			if packager, err = binDist(buildSpecWithDeps, currDistCfg, outputProductDir); err != nil {
 				return err
 			}
+		case params.DockerDistType:
+			if packager, err = dockerDist(buildSpecWithDeps, currDistCfg, outputProductDir); err != nil {
+				return err
+			}
 		case params.RPMDistType:
 			if packager, err = rpmDist(buildSpecWithDeps, currDistCfg, outputProductDir, stdout); err != nil {
 				return err
 			}
 		default:
-			return errors.Errorf("unknown dist type: %v", currDistCfg.Info.Type())
+			return errors.Errorf("unknown dist type: %v", typ)
 		}
 
 		// execute dist script
